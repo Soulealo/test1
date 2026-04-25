@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ Самбар - UNA Home & Furniture</title>
+    <link rel="icon" href="data:,">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="admin-styles.css">
+</head>
+<body>
+    
+    <div id="loginScreen" class="login-screen active">
+        <div class="login-container-admin">
+            <div class="login-header-admin">
+                <div class="admin-logo">
+                    <div class="logo-arch-admin"></div>
+                </div>
+                <h1>UNA Home & Furniture</h1>
+                <p>Админ Самбар</p>
+            </div>
+            
+            <form id="adminLoginForm" class="admin-login-form">
+                <h2>Нэвтрэх</h2>
+                
+                <div class="form-group-admin">
+                    <label for="adminUsername">Хэрэглэгчийн нэр</label>
+                    <div class="input-wrapper-admin">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="adminUsername" placeholder="admin" required>
+                    </div>
+                </div>
+
+                <div class="form-group-admin">
+                    <label for="adminPassword">Нууц үг</label>
+                    <div class="input-wrapper-admin">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="adminPassword" placeholder="••••••" required>
+                    </div>
+                </div>
+
+                <div id="loginError" class="login-error-admin"></div>
+
+                <button type="submit" class="admin-btn-submit">Нэвтрэх</button>
+            </form>
+
+            <div class="login-hint-admin">
+                <p><strong>Тестийн түлхүүр:</strong></p>
+                <p>Хэрэглэгчийн нэр: <code>admin</code></p>
+                <p>Нууц үг: <code>1234</code></p>
+            </div>
+
+            <div class="back-to-home-admin">
+                <a href="index.html"><i class="fas fa-arrow-left"></i> Нүүр хуудас руу буцах</a>
+            </div>
+        </div>
+    </div>
+
+    
+    <div id="dashboardScreen" class="dashboard-screen">
+        
+        <nav class="admin-navbar">
+            <div class="admin-nav-container">
+                <a href="index.html" class="admin-nav-logo">
+                    <div class="logo-arch"></div>
+                    <span>UNA Home & Furniture</span>
+                </a>
+                <div class="admin-nav-right">
+                    <span class="admin-username">Админ</span>
+                    <button id="logoutBtn" class="admin-logout-btn">
+                        <i class="fas fa-sign-out-alt"></i> Гарах
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        
+        <aside class="admin-sidebar">
+            <div class="sidebar-menu">
+                <a href="#" class="sidebar-link active" data-menu="dashboard">
+                    <i class="fas fa-home"></i>
+                    <span>Самбар</span>
+                </a>
+                <a href="#" class="sidebar-link" data-menu="products">
+                    <i class="fas fa-box"></i>
+                    <span>Бүтээгдэхүүн</span>
+                </a>
+            </div>
+        </aside>
+
+        
+        <main class="admin-main">
+            
+            <div class="admin-header">
+                <h1 id="pageTitle">Админ Самбар</h1>
+            </div>
+
+            
+            <div id="dashboardView" class="admin-view active">
+                <div class="dashboard-grid">
+                    <div class="stat-card-admin">
+                        <div class="stat-icon">
+                            <i class="fas fa-box"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>Нийт Бүтээгдэхүүн</h3>
+                            <p class="stat-number" id="totalProducts">0</p>
+                        </div>
+                    </div>
+
+                    <div class="quick-actions">
+                        <h3>Хурдан үйлдэл</h3>
+                        <button class="quick-action-btn" data-action="addProduct">
+                            <i class="fas fa-plus"></i> Шинэ бүтээгдэхүүн нэмэх
+                        </button>
+                        <button class="quick-action-btn" data-action="viewProducts">
+                            <i class="fas fa-list"></i> Бүтээгдэхүүний жагсаалт
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            
+            <div id="productsView" class="admin-view">
+                <div class="products-header-admin">
+                    <button id="addProductBtn" class="admin-btn-primary">
+                        <i class="fas fa-plus"></i> Шинэ бүтээгдэхүүн нэмэх
+                    </button>
+                </div>
+
+                <div class="products-table-container">
+                    <table id="productsTable" class="products-table-admin">
+                        <thead>
+                            <tr>
+                                <th>Зураг</th>
+                                <th>Нэр</th>
+                                <th>Тайлбар</th>
+                                <th>Ангилал</th>
+                                <th>Үнэ</th>
+                                <th>Үйлдэл</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody">
+                        </tbody>
+                    </table>
+                    <div id="emptyState" class="empty-state-admin">
+                        <i class="fas fa-inbox"></i>
+                        <p>Бүтээгдэхүүн байхгүй</p>
+                        <button class="admin-btn-secondary" onclick="document.getElementById('addProductBtn').click()">
+                            Анхны бүтээгдэхүүн нэмэх
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    
+    <div id="productModal" class="admin-modal">
+        <div class="modal-content-admin">
+            <div class="modal-header-admin">
+                <h2 id="modalTitle">Шинэ бүтээгдэхүүн нэмэх</h2>
+                <button id="closeModalBtn" class="modal-close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form id="productForm" class="product-form-admin">
+                <div class="form-group-admin">
+                    <label for="productName">Бүтээгдэхүүний нэр *</label>
+                    <input type="text" id="productName" placeholder="Жишээ: Орчин үеийн буйдан" required>
+                </div>
+
+                <div class="form-group-admin">
+                    <label for="productDescription">Тайлбар *</label>
+                    <textarea id="productDescription" placeholder="Бүтээгдэхүүний дэлгэрэнгүй тайлбар" rows="3" required></textarea>
+                </div>
+
+                <div class="form-group-admin">
+                    <label for="productDetails">Нэмэлт мэдээлэл *</label>
+                    <textarea id="productDetails" placeholder="Материал, хэрэглээ, онцлог зэрэг нэмэлт мэдээлэл" rows="3" required></textarea>
+                </div>
+
+                <div class="form-group-admin">
+                    <label for="productPrice">Үнэ (₮) *</label>
+                    <input type="number" id="productPrice" placeholder="Жишээ: 16500000" min="0" required>
+                </div>
+
+                <div class="form-group-admin">
+                    <label for="productCategory">Ангилал *</label>
+                    <select id="productCategory" required>
+                        <option value="">Ангилал сонгох</option>
+                        <option value="Буйдан">Буйдан</option>
+                        <option value="Ширээ">Ширээ</option>
+                        <option value="Сандал">Сандал</option>
+                        <option value="Гэрэлтүүлэг">Гэрэлтүүлэг</option>
+                        <option value="Чимэглэл">Чимэглэл</option>
+                        <option value="Зураг">Зураг</option>
+                    </select>
+                </div>
+
+                <div class="form-group-admin">
+                    <label for="productImage">Бүтээгдэхүүний зургууд *</label>
+                    <input type="file" id="productImage" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple>
+                    <small class="form-help-admin">JPG, JPEG, PNG, WEBP зургууд сонгоно уу. Засварлах үед шинэ зураг сонгохгүй бол хуучин зургууд хадгалагдана.</small>
+                </div>
+
+                <div id="imagePreview" class="image-preview-admin"></div>
+
+                <div class="form-actions-admin">
+                    <button type="submit" id="saveProductBtn" class="admin-btn-primary">Хадгалах</button>
+                    <button type="button" id="cancelFormBtn" class="admin-btn-secondary">Цуцлах</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>
