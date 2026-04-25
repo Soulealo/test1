@@ -1,80 +1,45 @@
+const API_BASE = '/api';
+const TOKEN_KEY = 'unaToken';
 const PRODUCT_CATEGORIES = ['Буйдан', 'Ширээ', 'Сандал', 'Гэрэлтүүлэг', 'Чимэглэл', 'Зураг'];
 const DEFAULT_PRODUCT_IMAGE = 'images/hero.jpg';
 
-const DEFAULT_PRODUCTS = [
-    {
-        id: 1,
-        name: 'Орчин үеийн буйдан',
-        description: 'Итали арьсан бүрээстэй, гар урласан модон хүрээтэй тансаг буйдан',
-        price: 16500000,
-        images: [DEFAULT_PRODUCT_IMAGE],
-        category: 'Буйдан',
-        details: 'Зочны өрөөнд тохиромжтой, бат бөх модон хүрээтэй, өдөр тутмын хэрэглээнд тав тухтай загвар.'
-    },
-    {
-        id: 2,
-        name: 'Гантиг кофений ширээ',
-        description: 'Цагаан гантиг дээвэртэй, алтан өнгийн хөлтэй — зочны өрөөний гол цэг',
-        price: 6600000,
-        images: [DEFAULT_PRODUCT_IMAGE],
-        category: 'Ширээ',
-        details: 'Гантиг гадаргуу нь цэвэрлэхэд хялбар, алтан өнгийн суурь нь интерьерийг тансаг харагдуулна.'
-    },
-    {
-        id: 3,
-        name: 'Орчин үеийн тоногт сандал',
-        description: 'Хилэн бүрээстэй, дунд зууны загварын скульптур сандал',
-        price: 4900000,
-        images: [DEFAULT_PRODUCT_IMAGE],
-        category: 'Сандал',
-        details: 'Уншлагын булан, унтлагын өрөө, зочны өрөөнд тавихад тохиромжтой зөөлөн суудалтай.'
-    },
-    {
-        id: 4,
-        name: 'Минималист шалны чийдэн',
-        description: 'Алтан өнгийн нуман чийдэн, маалинган бүрхүүлтэй — амгалан гэрэлтүүлэг',
-        price: 2300000,
-        images: [DEFAULT_PRODUCT_IMAGE],
-        category: 'Гэрэлтүүлэг',
-        details: 'Зөөлөн гэрэлтэй тул амрах хэсэг, буйдангийн хажуу, унтлагын өрөөнд уур амьсгал бүрдүүлнэ.'
-    },
-    {
-        id: 5,
-        name: 'Абстракт хананы зураг',
-        description: 'Гар зурсан орчин үеийн абстракт бүтээл, тусгай зотон дээр',
-        price: 3200000,
-        images: [DEFAULT_PRODUCT_IMAGE],
-        category: 'Зураг',
-        details: 'Зочны өрөө, коридор, оффисын хананд өнгө нэмэх гоёмсог абстракт бүтээл.'
-    },
-    {
-        id: 6,
-        name: 'Гар урласан шаазан ваар',
-        description: 'Уран дархны гараар хийсэн органик хэлбэртэй шаазан ваар — интерьерийн сонгодог чимэглэл',
-        price: 1750000,
-        images: [DEFAULT_PRODUCT_IMAGE],
-        category: 'Чимэглэл',
-        details: 'Тавиур, ширээ, консоль дээр байрлуулахад тохиромжтой, ганцаараа ч гоёмсог харагдах ваар.'
-    }
-];
-
 let selectedCategory = 'Бүгд';
 let selectedSort = 'default';
+let productsCache = [];
+let productsLoaded = false;
+
+async function requestJson(url, options = {}) {
+    const response = await fetch(url, options);
+    const responseText = await response.text();
+    let data = null;
+
+    try {
+        data = responseText ? JSON.parse(responseText) : null;
+    } catch (error) {
+        data = null;
+    }
+
+    if (!response.ok) {
+        throw new Error(data?.message || 'Сервертэй холбогдох үед алдаа гарлаа.');
+    }
+
+    return data;
+}
 
 function getSafeProductImage(image) {
     const imageValue = String(image || '').trim();
 
-    if (imageValue.startsWith('data:image/')) return imageValue;
+    if (imageValue.startsWith('/uploads/')) return imageValue;
+    if (imageValue.startsWith('uploads/')) return `/${imageValue}`;
     if (imageValue.startsWith('images/') || imageValue.startsWith('./images/')) return imageValue;
+    if (imageValue.startsWith('data:image/')) return imageValue;
 
     return DEFAULT_PRODUCT_IMAGE;
 }
 
 function getSafeProductImages(images, fallbackImage = DEFAULT_PRODUCT_IMAGE) {
     const imageList = Array.isArray(images) ? images : [];
-    const safeImages = imageList
-        .map(image => getSafeProductImage(image))
-        .filter(Boolean);
+    const safeImages = imageList.map(image => getSafeProductImage(image)).filter(Boolean);
 
     if (safeImages.length > 0) return safeImages;
 
@@ -86,59 +51,46 @@ function getProductMainImage(product) {
 }
 
 function normalizeProduct(product, index = 0) {
-    const fallback = DEFAULT_PRODUCTS.find(item => item.id === Number(product?.id)) || DEFAULT_PRODUCTS[index] || DEFAULT_PRODUCTS[0];
-    const numericPrice = Number(product?.price ?? fallback.price);
-    const fallbackImage = fallback.images?.[0] || fallback.image || DEFAULT_PRODUCT_IMAGE;
+    const numericPrice = Number(product?.price);
 
     return {
-        id: Number.isFinite(Number(product?.id)) ? Number(product.id) : Date.now() + index,
-        name: product?.name || fallback.name,
-        description: product?.description || fallback.description,
-        price: Number.isFinite(numericPrice) ? numericPrice : fallback.price,
-        images: getSafeProductImages(product?.images, product?.image || fallbackImage),
-        category: product?.category || fallback.category || 'Чимэглэл',
-        details: product?.details || product?.description || fallback.details || fallback.description
+        id: Number.isFinite(Number(product?.id)) ? Number(product.id) : index + 1,
+        name: product?.name || 'Бүтээгдэхүүн',
+        description: product?.description || '',
+        price: Number.isFinite(numericPrice) ? numericPrice : 0,
+        images: getSafeProductImages(product?.images, product?.image),
+        category: product?.category || 'Чимэглэл',
+        details: product?.details || product?.description || ''
     };
 }
 
 function normalizeProducts(products) {
-    return products.map((product, index) => normalizeProduct(product, index));
+    return Array.isArray(products) ? products.map((product, index) => normalizeProduct(product, index)) : [];
 }
-function getProducts() {
-    const legacyStored = localStorage.getItem('una_products');
-    if (legacyStored && !localStorage.getItem('unaProducts')) {
-        localStorage.setItem('unaProducts', legacyStored);
-        localStorage.removeItem('una_products');
-    }
 
-    const stored = localStorage.getItem('unaProducts');
-    if (!stored) {
-        const defaultProducts = normalizeProducts(DEFAULT_PRODUCTS);
-        saveProducts(defaultProducts);
-        return defaultProducts;
-    }
+async function fetchProducts() {
+    const products = await requestJson(`${API_BASE}/products`);
+    return normalizeProducts(products);
+}
 
-    try {
-        const products = JSON.parse(stored);
-        if (!Array.isArray(products)) {
-            const defaultProducts = normalizeProducts(DEFAULT_PRODUCTS);
-            saveProducts(defaultProducts);
-            return defaultProducts;
+async function ensureProductsLoaded() {
+    if (!productsLoaded) {
+        try {
+            productsCache = await fetchProducts();
+        } catch (error) {
+            console.error(error);
+            productsCache = [];
         }
 
-        const normalizedProducts = normalizeProducts(products);
-        if (JSON.stringify(products) !== JSON.stringify(normalizedProducts)) {
-            saveProducts(normalizedProducts);
-        }
-        return normalizedProducts;
-    } catch (error) {
-        const defaultProducts = normalizeProducts(DEFAULT_PRODUCTS);
-        saveProducts(defaultProducts);
-        return defaultProducts;
+        productsLoaded = true;
     }
+
+    return productsCache;
 }
-function saveProducts(products) {
-    localStorage.setItem('unaProducts', JSON.stringify(products));
+
+async function fetchProduct(productId) {
+    const product = await requestJson(`${API_BASE}/products/${productId}`);
+    return normalizeProduct(product);
 }
 
 function formatPrice(price) {
@@ -192,10 +144,7 @@ function createProductCard(product, useShortDescription = false) {
 }
 
 function getProductCategories(products) {
-    const productCategories = products
-        .map(product => product.category)
-        .filter(Boolean);
-
+    const productCategories = products.map(product => product.category).filter(Boolean);
     return ['Бүгд', ...new Set([...PRODUCT_CATEGORIES, ...productCategories])];
 }
 
@@ -238,11 +187,14 @@ function renderCategoryFilters(products) {
         filterContainer.appendChild(button);
     });
 }
-function renderProducts() {
+
+async function renderProducts() {
     const productsGrid = document.querySelector('.products-grid');
     if (!productsGrid) return;
-    
-    const products = getProducts();
+
+    productsGrid.innerHTML = '<p class="empty-products-message">Бүтээгдэхүүн уншиж байна...</p>';
+
+    const products = await ensureProductsLoaded();
     const visibleProducts = getFilteredAndSortedProducts(products);
     const resultCount = document.getElementById('productsResultCount');
 
@@ -257,7 +209,7 @@ function renderProducts() {
         productsGrid.innerHTML = '<p class="empty-products-message">Энэ ангилалд бүтээгдэхүүн байхгүй байна.</p>';
         return;
     }
-    
+
     visibleProducts.forEach(product => {
         productsGrid.appendChild(createProductCard(product));
     });
@@ -273,6 +225,7 @@ function setupProductControls() {
         renderProducts();
     });
 }
+
 function createProductDetailModal() {
     if (document.getElementById('productDetailModal')) return;
 
@@ -337,7 +290,7 @@ function setDetailMainImage(index) {
     const modal = document.getElementById('productDetailModal');
     const image = document.getElementById('detailProductImage');
     const thumbs = [...document.querySelectorAll('.product-detail-thumb')];
-    const images = JSON.parse(modal.dataset.images || '[]');
+    const images = JSON.parse(modal?.dataset.images || '[]');
 
     if (!image || images.length === 0) return;
 
@@ -357,6 +310,8 @@ function setDetailMainImage(index) {
 
 function renderDetailThumbnails(images) {
     const thumbsContainer = document.getElementById('detailProductThumbs');
+    if (!thumbsContainer) return;
+
     thumbsContainer.innerHTML = '';
 
     images.forEach((image, index) => {
@@ -369,11 +324,22 @@ function renderDetailThumbnails(images) {
     });
 }
 
-function openProductDetail(productId) {
-    const product = getProducts().find(item => item.id === Number(productId));
+async function openProductDetail(productId) {
     const modal = document.getElementById('productDetailModal');
+    if (!modal) return;
 
-    if (!product || !modal) return;
+    await ensureProductsLoaded();
+
+    let product = productsCache.find(item => item.id === Number(productId));
+
+    if (!product) {
+        try {
+            product = await fetchProduct(productId);
+        } catch (error) {
+            alert('Бүтээгдэхүүний мэдээлэл унших үед алдаа гарлаа.');
+            return;
+        }
+    }
 
     const images = getSafeProductImages(product.images, product.image);
     const image = document.getElementById('detailProductImage');
@@ -432,7 +398,7 @@ function setupProductDetailModal() {
         }
 
         if (previousButton || nextButton) {
-            const activeIndex = Number(modal.dataset.activeImage || 0);
+            const activeIndex = Number(modal?.dataset.activeImage || 0);
             setDetailMainImage(previousButton ? activeIndex - 1 : activeIndex + 1);
         }
 
@@ -462,11 +428,14 @@ function setupProductDetailModal() {
         }
     });
 }
-function renderFeaturedProducts() {
+
+async function renderFeaturedProducts() {
     const featuredGrid = document.querySelector('.featured-products-grid');
     if (!featuredGrid) return;
 
-    const featuredProducts = getProducts().slice(0, 4);
+    featuredGrid.innerHTML = '<p class="empty-products-message">Бүтээгдэхүүн уншиж байна...</p>';
+
+    const featuredProducts = (await ensureProductsLoaded()).slice(0, 4);
     featuredGrid.innerHTML = '';
 
     if (featuredProducts.length === 0) {
@@ -479,174 +448,177 @@ function renderFeaturedProducts() {
     });
 }
 
-const loginForm = document.getElementById('loginForm');
-if (loginForm) {
-    loginForm.addEventListener('submit', (e) => {
+function getToken() {
+    return localStorage.getItem(TOKEN_KEY);
+}
+
+function saveToken(token) {
+    localStorage.setItem(TOKEN_KEY, token);
+}
+
+function setupLoginForm() {
+    const loginForm = document.getElementById('loginForm');
+    if (!loginForm) return;
+
+    loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         const email = document.getElementById('email').value.trim().toLowerCase();
         const password = document.getElementById('password').value;
-        const users = JSON.parse(localStorage.getItem('unaUsers') || '[]');
-        const matchedUser = users.find(user => user.email === email && user.password === password);
 
-        if (!matchedUser) {
-            alert('И-мэйл эсвэл нууц үг буруу байна. Бүртгэлгүй бол эхлээд бүртгүүлнэ үү.');
-            return;
+        try {
+            const data = await requestJson(`${API_BASE}/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email, password })
+            });
+
+            saveToken(data.token);
+            alert(`Тавтай морил, ${data.user.fullname}!`);
+            loginForm.reset();
+            window.location.href = 'index.html';
+        } catch (error) {
+            alert(error.message);
         }
-
-        localStorage.setItem('unaUserSession', JSON.stringify({
-            email: matchedUser.email,
-            fullname: matchedUser.fullname,
-            loginTime: Date.now()
-        }));
-
-        alert(`Тавтай морил, ${matchedUser.fullname}!`);
-        loginForm.reset();
-        window.location.href = 'index.html';
     });
 }
 
-const signupForm = document.getElementById('signupForm');
-if (signupForm) {
-    signupForm.addEventListener('submit', (e) => {
+function setupSignupForm() {
+    const signupForm = document.getElementById('signupForm');
+    if (!signupForm) return;
+
+    signupForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
-        const fullname = document.getElementById('fullname').value;
-        const email = document.getElementById('signup-email').value;
+
+        const fullname = document.getElementById('fullname').value.trim();
+        const email = document.getElementById('signup-email').value.trim().toLowerCase();
         const password = document.getElementById('signup-password').value;
         const confirmPassword = document.getElementById('confirm-password').value;
-        
+
         if (password !== confirmPassword) {
             alert('Нууц үг таарахгүй байна!');
             return;
         }
-        
+
         if (password.length < 6) {
             alert('Нууц үг дор хаяж 6 тэмдэгт байх ёстой!');
             return;
         }
-        
-        if (fullname && email && password && confirmPassword) {
-            const users = JSON.parse(localStorage.getItem('unaUsers') || '[]');
-            const normalizedEmail = email.trim().toLowerCase();
 
-            if (users.some(user => user.email === normalizedEmail)) {
-                alert('Энэ и-мэйл хаяг бүртгэлтэй байна. Нэвтрэх хэсгээс орно уу.');
-                return;
-            }
-
-            users.push({
-                fullname: fullname.trim(),
-                email: normalizedEmail,
-                password
+        try {
+            await requestJson(`${API_BASE}/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ fullname, email, password })
             });
-            localStorage.setItem('unaUsers', JSON.stringify(users));
 
             alert(`UNA Home & Furniture-д тавтай морил, ${fullname}! Таны бүртгэл амжилттай үүслээ.`);
             signupForm.reset();
             setTimeout(() => {
                 window.location.href = 'login.html';
-            }, 1500);
+            }, 1200);
+        } catch (error) {
+            alert(error.message);
         }
     });
 }
 
-const togglePasswordSignup = document.getElementById('togglePasswordSignup');
-if (togglePasswordSignup) {
-    togglePasswordSignup.addEventListener('click', (e) => {
-        e.preventDefault();
-        const passwordField = document.getElementById('signup-password');
-        const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
-        passwordField.setAttribute('type', type);
-        togglePasswordSignup.innerHTML = type === 'password' ? 
-            '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+function setupPasswordToggles() {
+    const passwordToggles = [
+        ['togglePasswordSignup', 'signup-password'],
+        ['togglePassword', 'password'],
+        ['togglePasswordConfirm', 'confirm-password']
+    ];
+
+    passwordToggles.forEach(([buttonId, inputId]) => {
+        const button = document.getElementById(buttonId);
+        const input = document.getElementById(inputId);
+
+        if (!button || !input) return;
+
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+            input.setAttribute('type', type);
+            button.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+        });
     });
 }
 
-const togglePassword = document.getElementById('togglePassword');
-if (togglePassword) {
-    togglePassword.addEventListener('click', (e) => {
-        e.preventDefault();
-        const passwordField = document.getElementById('password');
-        const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
-        passwordField.setAttribute('type', type);
-        togglePassword.innerHTML = type === 'password' ?
-            '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+function setupNavigation() {
+    document.querySelectorAll('.nav-logo').forEach(logo => {
+        logo.addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+    });
+
+    document.querySelectorAll('.hamburger').forEach(hamburger => {
+        hamburger.addEventListener('click', () => {
+            const navMenu = hamburger.closest('.nav-container')?.querySelector('.nav-menu');
+            navMenu?.classList.toggle('active');
+            hamburger.classList.toggle('active');
+        });
+    });
+
+    document.querySelectorAll('.nav-menu .nav-link').forEach(link => {
+        link.addEventListener('click', () => {
+            document.querySelectorAll('.nav-menu.active').forEach(menu => menu.classList.remove('active'));
+            document.querySelectorAll('.hamburger.active').forEach(hamburger => hamburger.classList.remove('active'));
+        });
     });
 }
 
-const togglePasswordConfirm = document.getElementById('togglePasswordConfirm');
-if (togglePasswordConfirm) {
-    togglePasswordConfirm.addEventListener('click', (e) => {
-        e.preventDefault();
-        const passwordField = document.getElementById('confirm-password');
-        const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
-        passwordField.setAttribute('type', type);
-        togglePasswordConfirm.innerHTML = type === 'password' ? 
-            '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+function setupStaticActions() {
+    document.querySelectorAll('.google-signup-btn, .google-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            alert('Google-ийн нэвтрэлт удахгүй нэмэгдэх болно.');
+        });
     });
+
+    document.querySelectorAll('.forgot-password').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            alert('Нууц үг сэргээх хэсэг удахгүй нэмэгдэх болно.');
+        });
+    });
+
+    document.querySelectorAll('.terms-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            alert('Үйлчилгээний нөхцөл болон нууцлалын бодлого удахгүй нэмэгдэх болно.');
+        });
+    });
+
+    document.querySelectorAll('.social-links a').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            alert('Сошиал холбоос удахгүй нэмэгдэх болно.');
+        });
+    });
+
+    const contactForm = document.getElementById('contactForm');
+    if (contactForm) {
+        contactForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            alert('Таны зурвас амжилттай илгээгдлээ.');
+            contactForm.reset();
+        });
+    }
 }
 
-document.querySelectorAll('.nav-logo').forEach(logo => {
-    logo.addEventListener('click', (e) => {
-        window.location.href = 'index.html';
-    });
-});
-
-document.querySelectorAll('.hamburger').forEach(hamburger => {
-    hamburger.addEventListener('click', () => {
-        const navMenu = hamburger.closest('.nav-container')?.querySelector('.nav-menu');
-        navMenu?.classList.toggle('active');
-        hamburger.classList.toggle('active');
-    });
-});
-
-document.querySelectorAll('.nav-menu .nav-link').forEach(link => {
-    link.addEventListener('click', () => {
-        document.querySelectorAll('.nav-menu.active').forEach(menu => menu.classList.remove('active'));
-        document.querySelectorAll('.hamburger.active').forEach(hamburger => hamburger.classList.remove('active'));
-    });
-});
-
-document.querySelectorAll('.google-signup-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        alert('Google-ийн нэвтрэлт удахгүй нэмэгдэх болно.');
-    });
-});
-
-document.querySelectorAll('.google-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        alert('Google-ийн нэвтрэлт удахгүй нэмэгдэх болно.');
-    });
-});
-
-document.querySelectorAll('.forgot-password').forEach(link => {
-    link.addEventListener('click', (e) => {
-        e.preventDefault();
-        alert('Нууц үг сэргээх хэсэг удахгүй нэмэгдэх болно.');
-    });
-});
-
-const contactForm = document.getElementById('contactForm');
-if (contactForm) {
-    contactForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        alert('Таны зурвасыг хүлээн авлаа. Бид удахгүй холбогдох болно.');
-        contactForm.reset();
-    });
-}
-
-document.querySelectorAll('.terms-link').forEach(link => {
-    link.addEventListener('click', (e) => {
-        e.preventDefault();
-        alert('Үйлчилгээний нөхцөлийн хуудас удахгүй нэмэгдэх болно.');
-    });
-});
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    setupNavigation();
+    setupStaticActions();
+    setupPasswordToggles();
+    setupLoginForm();
+    setupSignupForm();
     setupProductControls();
     setupProductDetailModal();
-    renderProducts();
-    renderFeaturedProducts();
+    await renderProducts();
+    await renderFeaturedProducts();
 });

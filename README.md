@@ -1,76 +1,180 @@
 # UNA Home & Furniture
 
-UNA Home & Furniture нь тавилга, интерьер бүтээгдэхүүний танилцуулга болон админ удирдлагатай жижиг хэмжээний вэб сайт юм. Сайт нь зөвхөн HTML, CSS, JavaScript ашигласан бөгөөд өгөгдлийг browser-ийн `localStorage` дотор хадгална.
+UNA Home & Furniture нь luxury dark brown/gold өнгө төрхтэй тавилга, интерьер бүтээгдэхүүний full-stack вэб сайт юм. Frontend нь HTML, CSS, JavaScript хэвээр үлдсэн бөгөөд бүтээгдэхүүн, хэрэглэгч, зураг upload-ийн өгөгдөл backend API болон MySQL database-аас ажиллана.
 
-## Үндсэн боломжууд
+## Ашигласан технологи
 
-- Нүүр хуудас дээр онцлох бүтээгдэхүүн харуулах
-- Бүтээгдэхүүний бүрэн жагсаалт үзэх
-- Ангиллаар шүүх
-- Үнээр болон нэрээр эрэмбэлэх
-- Бүтээгдэхүүний дэлгэрэнгүй preview modal нээх
-- Олон зурагтай бүтээгдэхүүн харуулах
-- Thumbnail зураг дээр дарж том зургийг солих
-- Тоо ширхэг сонгох
-- Админ хэсгээс бүтээгдэхүүн нэмэх, засах, устгах
-- Админ хэсгээс олон зураг upload хийх
-- Upload хийсэн зургуудыг Base64 хэлбэрээр `localStorage`-д хадгалах
-- Login болон signup хуудастай
+- HTML
+- CSS
+- JavaScript
+- Node.js
+- Express.js
+- MySQL
+- Multer
+- bcrypt
+- JWT
 
 ## Файлын бүтэц
 
 ```text
 .
-├── index.html
-├── products.html
-├── login.html
-├── signup.html
-├── admin.html
-├── styles.css
-├── admin-styles.css
-├── script.js
-├── admin.js
-├── images/
-│   └── hero.jpg
+├── client/
+│   ├── index.html
+│   ├── products.html
+│   ├── login.html
+│   ├── signup.html
+│   ├── admin.html
+│   ├── styles.css
+│   ├── admin-styles.css
+│   ├── script.js
+│   ├── admin.js
+│   └── images/
+├── server/
+│   ├── server.js
+│   ├── routes/
+│   │   ├── auth.js
+│   │   ├── products.js
+│   │   └── upload.js
+│   ├── controllers/
+│   │   ├── authController.js
+│   │   ├── productsController.js
+│   │   └── uploadController.js
+│   ├── models/
+│   │   ├── db.js
+│   │   └── schema.js
+│   ├── middleware/
+│   │   └── auth.js
+│   └── uploads/
+├── schema.sql
+├── package.json
+├── .env.example
 └── README.md
 ```
 
-## Ажиллуулах заавар
+## Database тохируулах
 
-Төслийн хавтас дотор terminal нээгээд дараах command ажиллуулна:
+MySQL ажиллаж байх ёстой. macOS дээр Homebrew ашиглаж байгаа бол:
 
 ```bash
-python3 -m http.server 4173
+brew install mysql
+brew services start mysql
 ```
 
-Дараа нь browser дээр:
+MySQL аль хэдийн суусан бол зөвхөн асаана.
+
+```bash
+brew services start mysql
+```
+
+Дараа нь `.env.example` файлыг `.env` болгож хуулна.
+
+```bash
+cp .env.example .env
+```
+
+`.env` дотор өөрийн MySQL тохиргоог оруулна.
 
 ```text
-http://localhost:4173
+PORT=3000
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=una_home
+JWT_SECRET=una_home_change_me
+DEFAULT_ADMIN_EMAIL=admin@unahome.mn
+DEFAULT_ADMIN_PASSWORD=1234
+DEFAULT_ADMIN_FULLNAME=UNA Admin
 ```
 
-руу орно.
+Database schema нь `schema.sql` файлд байгаа. Сервер асах үед database болон table-уудыг мөн автоматаар шалгаж үүсгэнэ.
 
-## Гол хуудсууд
+Хэрвээ `ECONNREFUSED` алдаа гарвал MySQL асаагүй байна гэсэн үг. MySQL-ээ асаагаад `.env` доторх `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` утгуудаа шалгана.
 
-- `index.html` - Нүүр хуудас
-- `products.html` - Бүтээгдэхүүний жагсаалт
-- `login.html` - Нэвтрэх хуудас
-- `signup.html` - Бүртгүүлэх хуудас
-- `admin.html` - Админ самбар
+## SQL schema
+
+```sql
+CREATE DATABASE IF NOT EXISTS una_home CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE una_home;
+
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    fullname VARCHAR(150) NOT NULL,
+    email VARCHAR(180) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role ENUM('user', 'admin') NOT NULL DEFAULT 'user',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(180) NOT NULL,
+    description TEXT NOT NULL,
+    price DECIMAL(12, 2) NOT NULL,
+    category VARCHAR(80) NOT NULL,
+    details TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS product_images (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    image_path VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+```
+
+## Ажиллуулах
+
+Төслийн root хавтас дотор:
+
+```bash
+npm install
+npm run dev
+```
+
+Browser дээр:
+
+```text
+http://localhost:3000
+```
+
+## API endpoints
+
+```text
+POST /api/register
+POST /api/login
+GET /api/products
+GET /api/products/:id
+POST /api/products
+PUT /api/products/:id
+DELETE /api/products/:id
+POST /api/upload
+```
+
+`POST`, `PUT`, `DELETE`, `POST /api/upload` endpoint-ууд admin JWT token шаарддаг.
 
 ## Админ нэвтрэлт
 
-Админ самбар руу орохын тулд:
+Сервер анх асах үед `.env` дээрх default admin хэрэглэгчийг үүсгэнэ.
 
 ```text
 Хэрэглэгчийн нэр: admin
 Нууц үг: 1234
 ```
 
-## Бүтээгдэхүүний өгөгдлийн бүтэц
+Мөн дараах email-ээр нэвтэрч болно.
 
-Бүтээгдэхүүн бүр `localStorage` дотор дараах бүтэцтэй хадгалагдана:
+```text
+admin@unahome.mn
+```
+
+## Бүтээгдэхүүний бүтэц
+
+Backend API дараах бүтэцтэй product object буцаана.
 
 ```json
 {
@@ -79,25 +183,14 @@ http://localhost:4173
   "description": "Товч тайлбар",
   "price": 1000000,
   "category": "Буйдан",
-  "images": ["base64-image-1", "base64-image-2"],
-  "details": "Нэмэлт мэдээлэл"
+  "details": "Нэмэлт мэдээлэл",
+  "images": ["/uploads/image-name.webp"]
 }
 ```
 
-## Бүтээгдэхүүний ангилал
+## Зураг upload
 
-Одоогоор дараах ангиллууд ашиглагдана:
-
-- Буйдан
-- Ширээ
-- Сандал
-- Гэрэлтүүлэг
-- Чимэглэл
-- Зураг
-
-## Зураг upload хийх
-
-Админ хэсэгт бүтээгдэхүүн нэмэх эсвэл засах үед зураг компьютерээс upload хийнэ.
+Админ самбар дээр бүтээгдэхүүн нэмэх эсвэл засах үед олон зураг upload хийж болно.
 
 Дэмжих формат:
 
@@ -106,22 +199,12 @@ http://localhost:4173
 - PNG
 - WEBP
 
-Нэг бүтээгдэхүүн дээр олон зураг upload хийж болно. Эхний зураг нь бүтээгдэхүүний card дээр харагдах үндсэн зураг болно. Дэлгэрэнгүй preview дээр бүх зураг thumbnail хэлбэрээр харагдана.
+Upload хийсэн зургууд `server/uploads/` дотор хадгалагдаж, database дотор `/uploads/...` path хэлбэрээр бичигдэнэ. Бүтээгдэхүүний card дээр эхний зураг харагдана. Дэлгэрэнгүй modal дээр бүх зураг thumbnail хэлбэрээр солигдож харагдана.
 
-## `localStorage` ашиглалт
+## Frontend ажиллагаа
 
-Сайт дараах key-үүдийг ашиглана:
-
-- `unaProducts` - бүтээгдэхүүний жагсаалт
-- `unaUsers` - бүртгүүлсэн хэрэглэгчид
-- `unaUserSession` - хэрэглэгчийн session
-- `una_admin_session` - админ session
-
-Browser-ийн storage цэвэрлэвэл хадгалсан бүтээгдэхүүн болон хэрэглэгчийн мэдээлэл устах боломжтой.
-
-## Анхаарах зүйл
-
-- Энэ төсөл backend болон database ашиглаагүй.
-- Зураг Base64 хэлбэрээр хадгалагддаг тул олон том зураг upload хийвэл browser storage хурдан дүүрч болно.
-- Жинхэнэ production сайт бол backend, database, image storage, authentication хамгаалалт нэмэх шаардлагатай.
-- `images/hero.jpg` нь нүүр хуудасны hero background зураг болно.
+- `products.html` нь `/api/products` endpoint-оос бүтээгдэхүүн уншина.
+- `index.html` дээрх онцлох бүтээгдэхүүн мөн ижил API-аас уншина.
+- Админ самбар нь бүтээгдэхүүн нэмэх, засах, устгахдаа API request илгээнэ.
+- Login амжилттай бол JWT token browser-ийн `localStorage` дотор `unaToken` нэрээр хадгалагдана.
+- Product data browser storage-д хадгалагдахгүй.
